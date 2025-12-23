@@ -190,7 +190,6 @@ extension NodeCallable {
 
 public extension NodeValue {
     func wrapSwiftObject(obj: Any) throws {
-        print("wrapSwiftObject called \(self) with obj \(obj)")
         let env = NodeEnvironment.current
         try? env.check(
             napi_wrap(env.raw, try rawValue(), UnsafeMutableRawPointer(mutating: Unmanaged.passRetained(obj as AnyObject).toOpaque()), nil, nil, nil)
