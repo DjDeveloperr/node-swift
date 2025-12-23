@@ -72,11 +72,11 @@ extension NodeEnvironment {
         try check(napi_throw(raw, AnyNodeValue(error: error).rawValue()))
     }
 
-    public func throwUncaught(_ error: Error) throws {
-        try check(
-            napi_fatal_exception(raw, AnyNodeValue(error: error).rawValue())
-        )
-    }
+    // public func throwUncaught(_ error: Error) throws {
+    //     try check(
+    //         napi_fatal_exception(raw, AnyNodeValue(error: error).rawValue())
+    //     )
+    // }
 
 }
 
@@ -137,32 +137,32 @@ private func cCleanupHook(_ payload: UnsafeMutableRawPointer?) {
     Unmanaged<CleanupHook>.fromOpaque(payload).takeRetainedValue().callback()
 }
 
-extension NodeEnvironment {
+// extension NodeEnvironment {
 
-    @discardableResult
-    public func addCleanupHook(
-        action: @escaping @Sendable () -> Void
-    ) throws -> CleanupHook {
-        let token = CleanupHook(callback: action)
-        try check(napi_add_env_cleanup_hook(
-            raw,
-            { cCleanupHook($0) },
-            Unmanaged.passRetained(token).toOpaque()
-        ))
-        return token
-    }
+//     @discardableResult
+//     public func addCleanupHook(
+//         action: @escaping @Sendable () -> Void
+//     ) throws -> CleanupHook {
+//         let token = CleanupHook(callback: action)
+//         try check(napi_add_env_cleanup_hook(
+//             raw,
+//             { cCleanupHook($0) },
+//             Unmanaged.passRetained(token).toOpaque()
+//         ))
+//         return token
+//     }
 
-    public func removeCleanupHook(_ hook: CleanupHook) throws {
-        let arg = Unmanaged.passUnretained(hook)
-        try check(napi_remove_env_cleanup_hook(
-            raw, { cCleanupHook($0) }, arg.toOpaque())
-        )
-        // only release if we succeed at removing the hook, otherwise
-        // napi may still store a dangling pointer
-        arg.release()
-    }
+//     public func removeCleanupHook(_ hook: CleanupHook) throws {
+//         let arg = Unmanaged.passUnretained(hook)
+//         try check(napi_remove_env_cleanup_hook(
+//             raw, { cCleanupHook($0) }, arg.toOpaque())
+//         )
+//         // only release if we succeed at removing the hook, otherwise
+//         // napi may still store a dangling pointer
+//         arg.release()
+//     }
 
-}
+// }
 
 // async hooks require NAPI 8+. sync requires 3+, so no
 // need to check the version for sync.
@@ -179,49 +179,49 @@ public final class AsyncCleanupHook {
 private func cAsyncCleanupHook(handle: napi_async_cleanup_hook_handle!, payload: UnsafeMutableRawPointer!) {
     guard let payload = payload else { return }
     let hook = Unmanaged<AsyncCleanupHook>.fromOpaque(payload).takeRetainedValue()
-    hook.callback { napi_remove_async_cleanup_hook(handle) }
+    // hook.callback { napi_remove_async_cleanup_hook(handle) }
 }
 
-extension NodeEnvironment {
+// extension NodeEnvironment {
 
-    // action must call the passed in completion handler once it is done with
-    // its cleanup
-    @discardableResult
-    public func addCleanupHook(
-        action: @escaping (@escaping () -> Void) -> Void
-    ) throws -> AsyncCleanupHook {
-        let token = AsyncCleanupHook(callback: action)
-        try check(napi_add_async_cleanup_hook(
-            raw,
-            { cAsyncCleanupHook(handle: $0, payload: $1) },
-            Unmanaged.passRetained(token).toOpaque(),
-            &token.handle
-        ))
-        return token
-    }
+//     // action must call the passed in completion handler once it is done with
+//     // its cleanup
+//     @discardableResult
+//     public func addCleanupHook(
+//         action: @escaping (@escaping () -> Void) -> Void
+//     ) throws -> AsyncCleanupHook {
+//         let token = AsyncCleanupHook(callback: action)
+//         try check(napi_add_async_cleanup_hook(
+//             raw,
+//             { cAsyncCleanupHook(handle: $0, payload: $1) },
+//             Unmanaged.passRetained(token).toOpaque(),
+//             &token.handle
+//         ))
+//         return token
+//     }
 
-    // just some nice sugar
-    @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
-    public func addCleanupHook(
-        action: @escaping () async -> Void
-    ) throws -> AsyncCleanupHook {
-        try addCleanupHook { completion in
-            Task {
-                await action()
-                completion()
-            }
-        }
-    }
+//     // just some nice sugar
+//     @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
+//     public func addCleanupHook(
+//         action: @escaping () async -> Void
+//     ) throws -> AsyncCleanupHook {
+//         try addCleanupHook { completion in
+//             Task {
+//                 await action()
+//                 completion()
+//             }
+//         }
+//     }
 
-    public func removeCleanupHook(_ hook: AsyncCleanupHook) throws {
-        let arg = Unmanaged.passUnretained(hook)
-        try check(
-            napi_remove_async_cleanup_hook(hook.handle)
-        )
-        arg.release()
-    }
+//     public func removeCleanupHook(_ hook: AsyncCleanupHook) throws {
+//         let arg = Unmanaged.passUnretained(hook)
+//         try check(
+//             napi_remove_async_cleanup_hook(hook.handle)
+//         )
+//         arg.release()
+//     }
 
-}
+// }
 
 #endif
 
@@ -257,7 +257,7 @@ extension NodeEnvironment {
         get throws {
             // "The returned buffer is statically allocated and does not need to be freed"
             var version: UnsafePointer<napi_node_version>!
-            try check(napi_get_node_version(raw, &version))
+            // try check(napi_get_node_version(raw, &version))
             return NodeVersion(raw: version.pointee)
         }
     }
@@ -265,7 +265,7 @@ extension NodeEnvironment {
     public var apiVersion: Int {
         get throws {
             var version: UInt32 = 0
-            try check(napi_get_version(raw, &version))
+            // try check(napi_get_version(raw, &version))
             return Int(version)
         }
     }

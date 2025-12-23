@@ -3,7 +3,7 @@ internal import CNodeAPI
 @_spi(NodeAPI) @NodeActor public final class NodeValueBase {
     private enum Guts: @unchecked Sendable {
         case unmanaged(napi_value)
-        case managed(napi_ref, releaseQueue: NodeAsyncQueue, isBoxed: Bool)
+        case managed(napi_ref, releaseQueue: NodeAsyncQueue?, isBoxed: Bool)
     }
 
     let environment: NodeEnvironment
@@ -53,9 +53,10 @@ internal import CNodeAPI
                 isBoxed = true
             }
             var ref: napi_ref!
-            try environment.check(napi_create_reference(environment.raw, boxedRaw, 1, &ref))
-            let releaseQueue = try releaseQueue ?? environment.getDefaultQueue()
-            self.guts = .managed(ref, releaseQueue: releaseQueue, isBoxed: isBoxed)
+            try environment.check(napi_create_reference(environment.raw, boxedRaw, 0, &ref))
+            // Try to get a release queue, but don't fail if unavailable (e.g. no threadsafe function support)
+            let queue = releaseQueue ?? (try? environment.getDefaultQueue())
+            self.guts = .managed(ref, releaseQueue: queue, isBoxed: isBoxed)
         }
     }
 
@@ -84,11 +85,22 @@ internal import CNodeAPI
             break
         case let .managed(ref, releaseQueue, _):
             let sendable = UncheckedSendable(ref)
-            try? releaseQueue.run {
-                let env = NodeEnvironment.current
-                try env.check(
-                    napi_delete_reference(env.raw, sendable.value)
-                )
+            if let releaseQueue {
+                try? releaseQueue.run {
+                    let env = NodeEnvironment.current
+                    try env.check(
+                        napi_delete_reference(env.raw, sendable.value)
+                    )
+                }
+            } else {
+                // No async queue available (e.g. single-threaded runtime without threadsafe functions).
+                // Try to clean up synchronously if we're on the JS thread.
+                _ = NodeContext.runOnActor {
+                    let env = NodeEnvironment.current
+                    try? env.check(
+                        napi_delete_reference(env.raw, sendable.value)
+                    )
+                }
             }
         }
     }
@@ -173,6 +185,32 @@ extension NodeCallable {
 
     public var new: NodeCallableConstructor {
         NodeCallableConstructor(callable: self)
+    }
+}
+
+public extension NodeValue {
+    func wrapSwiftObject(obj: Any) throws {
+        print("wrapSwiftObject called \(self) with obj \(obj)")
+        let env = NodeEnvironment.current
+        try? env.check(
+            napi_wrap(env.raw, try rawValue(), UnsafeMutableRawPointer(mutating: Unmanaged.passRetained(obj as AnyObject).toOpaque()), nil, nil, nil)
+        )
+    }
+
+    func unwrapSwiftObject() throws -> AnyObject? {
+        let env = NodeEnvironment.current
+        var data: UnsafeMutableRawPointer?
+        try env.check(
+            napi_unwrap(env.raw, try rawValue(), &data)
+        )
+        guard let data = data else {
+            return nil
+        }
+        return Unmanaged<AnyObject>.fromOpaque(data).takeUnretainedValue()
+    }
+
+    func persist() throws {
+        try base.persist()
     }
 }
 

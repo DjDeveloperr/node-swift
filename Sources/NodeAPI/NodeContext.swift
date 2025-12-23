@@ -172,7 +172,31 @@ final class NodeContext {
 
     static func withUnsafeEntrypoint<T>(_ environment: NodeEnvironment, action: @NodeActor @Sendable (NodeContext) throws -> T) -> T? {
         NodeActor.unsafeAssumeIsolated {
-            try? withContext(environment: environment, isTopLevel: true, do: action)
+            let ctx = NodeContext(environment: environment, isManaged: false)
+            node_swift_context_push(Unmanaged.passUnretained(ctx).toOpaque())
+            defer { node_swift_context_pop() }
+            do {
+                let result = try action(ctx)
+                return result
+            } catch {
+                try? environment.throw(error)
+                return nil
+            }
+        }
+    }
+
+    // Minimal entrypoint that only sets up the context stack without async queue overhead.
+    // Use this for module registration or environments that don't support threadsafe functions.
+    static func withMinimalEntrypoint<T>(_ raw: napi_env, action: @NodeActor @Sendable (NodeContext) throws -> T) -> T? {
+        withMinimalEntrypoint(NodeEnvironment(raw), action: action)
+    }
+
+    static func withMinimalEntrypoint<T>(_ environment: NodeEnvironment, action: @NodeActor @Sendable (NodeContext) throws -> T) -> T? {
+        NodeActor.unsafeAssumeIsolated {
+            let ctx = NodeContext(environment: environment, isManaged: false)
+            node_swift_context_push(Unmanaged.passUnretained(ctx).toOpaque())
+            defer { node_swift_context_pop() }
+            return try? action(ctx)
         }
     }
 

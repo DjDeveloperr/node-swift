@@ -33,11 +33,11 @@ private class NodeInstanceDataStorage: @unchecked Sendable {
 
             // remove our associated storage when napi destroys the env
             let sendableRaw = UncheckedSendable(raw)
-            _ = try? env.addCleanupHook {
-                self.lock.withWriterLockVoid {
-                    self.storage.removeValue(forKey: sendableRaw.value)
-                }
-            }
+            // _ = try? env.addCleanupHook {
+            //     self.lock.withWriterLockVoid {
+            //         self.storage.removeValue(forKey: sendableRaw.value)
+            //     }
+            // }
 
             return box
         }

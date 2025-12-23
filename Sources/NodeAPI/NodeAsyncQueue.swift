@@ -49,7 +49,7 @@ public final class NodeAsyncQueue: @unchecked Sendable {
     let label: String
     let instanceID: UUID
     private let environment: NodeEnvironment
-    private let raw: napi_threadsafe_function
+    private let raw: napi_threadsafe_function?
     private weak var currentHandle: Handle?
 
     @NodeActor public init(
@@ -65,22 +65,27 @@ public final class NodeAsyncQueue: @unchecked Sendable {
         let box = Unmanaged.passRetained(tsfnToken)
         var result: napi_threadsafe_function!
         do {
-            try environment.check(napi_create_threadsafe_function(
-                environment.raw, nil,
-                asyncResource?.rawValue(), label.rawValue(),
-                maxQueueSize ?? 0, 1,
-                box.toOpaque(), { rawEnv, data, hint in
-                    Unmanaged<Token>.fromOpaque(data!).release()
-                },
-                nil, cCallbackC,
-                &result
-            ))
+            // try environment.check(napi_create_threadsafe_function(
+            //     environment.raw, nil,
+            //     asyncResource?.rawValue(), label.rawValue(),
+            //     maxQueueSize ?? 0, 1,
+            //     box.toOpaque(), { rawEnv, data, hint in
+            //         Unmanaged<Token>.fromOpaque(data!).release()
+            //     },
+            //     nil, cCallbackC,
+            //     &result
+            // ))
         } catch {
             box.release() // we stan strong exception safety
             throw error
         }
+        // If threadsafe functions aren't supported, result will be nil
+        if result == nil {
+            box.release()
+            throw NodeAPIError(.genericFailure, message: "Threadsafe functions are not supported in this runtime")
+        }
         self.raw = result
-        try environment.check(napi_unref_threadsafe_function(environment.raw, raw))
+        // try environment.check(napi_unref_threadsafe_function(environment.raw, raw))
     }
 
     private static func check(_ status: napi_status) throws {
@@ -103,8 +108,8 @@ public final class NodeAsyncQueue: @unchecked Sendable {
     // makes any future calls to the threadsafe function return NodeAPIError(.closing)
     public func close() throws {
         try ensureValid()
-        try Self.check(napi_acquire_threadsafe_function(raw))
-        try Self.check(napi_release_threadsafe_function(raw, napi_tsfn_abort))
+        // try Self.check(napi_acquire_threadsafe_function(raw))
+        // try Self.check(napi_release_threadsafe_function(raw, napi_tsfn_abort))
     }
 
     public class Handle: @unchecked Sendable {
@@ -112,7 +117,7 @@ public final class NodeAsyncQueue: @unchecked Sendable {
 
         @NodeActor fileprivate init(_ queue: NodeAsyncQueue) throws {
             let env = queue.environment
-            try env.check(napi_ref_threadsafe_function(env.raw, queue.raw))
+            // try env.check(napi_ref_threadsafe_function(env.raw, queue.raw))
             self.queue = queue
         }
 
@@ -132,7 +137,7 @@ public final class NodeAsyncQueue: @unchecked Sendable {
                 // we aren't really isolated but this is necessary to suppress
                 // warnings about accessing `env.raw` off of NodeActor
                 NodeActor.unsafeAssumeIsolated {
-                    _ = napi_unref_threadsafe_function(env.raw, raw.value)
+                    // _ = napi_unref_threadsafe_function(env.raw, raw.value)
                 }
             }
         }
@@ -153,7 +158,7 @@ public final class NodeAsyncQueue: @unchecked Sendable {
 
     deinit {
         if isValid {
-            napi_release_threadsafe_function(raw, napi_tsfn_release)
+            // napi_release_threadsafe_function(raw, napi_tsfn_release)
         }
     }
 
@@ -167,12 +172,12 @@ public final class NodeAsyncQueue: @unchecked Sendable {
         let unmanagedPayload = Unmanaged.passRetained(payload)
         let rawPayload = unmanagedPayload.toOpaque()
         do {
-            try Self.check(
-                napi_call_threadsafe_function(
-                    raw, rawPayload,
-                    blocking ? napi_tsfn_blocking : napi_tsfn_nonblocking
-                )
-            )
+            // try Self.check(
+            //     napi_call_threadsafe_function(
+            //         raw, rawPayload,
+            //         blocking ? napi_tsfn_blocking : napi_tsfn_nonblocking
+            //     )
+            // )
         } catch {
             unmanagedPayload.release()
         }

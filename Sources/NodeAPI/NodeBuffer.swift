@@ -6,7 +6,7 @@ public final class NodeBuffer: NodeTypedArray<UInt8> {
     override class func isObjectType(for value: NodeValueBase) throws -> Bool {
         let env = value.environment
         var result = false
-        try env.check(napi_is_buffer(env.raw, value.rawValue(), &result))
+        // try env.check(napi_is_buffer(env.raw, value.rawValue(), &result))
         return result
     }
 
@@ -19,7 +19,7 @@ public final class NodeBuffer: NodeTypedArray<UInt8> {
         let env = ctx.environment
         var data: UnsafeMutableRawPointer?
         var result: napi_value!
-        try env.check(napi_create_buffer(env.raw, capacity, &data, &result))
+        // try env.check(napi_create_buffer(env.raw, capacity, &data, &result))
         super.init(NodeValueBase(raw: result, in: ctx))
     }
 
@@ -29,14 +29,14 @@ public final class NodeBuffer: NodeTypedArray<UInt8> {
         let env = ctx.environment
         var result: napi_value!
         let hint = Unmanaged.passRetained(Hint((deallocator, bytes))).toOpaque()
-        try env.check(
-            napi_create_external_buffer(env.raw, bytes.count, bytes.baseAddress, { rawEnv, _, hint in
-                NodeContext.withUnsafeEntrypoint(rawEnv!) { _ in
-                    let (deallocator, bytes) = Unmanaged<Hint>.fromOpaque(hint!).takeRetainedValue().value
-                    deallocator.action(bytes)
-                }
-            }, hint, &result)
-        )
+        // try env.check(
+        //     napi_create_external_buffer(env.raw, bytes.count, bytes.baseAddress, { rawEnv, _, hint in
+        //         NodeContext.withUnsafeEntrypoint(rawEnv!) { _ in
+        //             let (deallocator, bytes) = Unmanaged<Hint>.fromOpaque(hint!).takeRetainedValue().value
+        //             deallocator.action(bytes)
+        //         }
+        //     }, hint, &result)
+        // )
         super.init(NodeValueBase(raw: result, in: ctx))
     }
 
@@ -52,9 +52,9 @@ public final class NodeBuffer: NodeTypedArray<UInt8> {
         let env = ctx.environment
         var resultData: UnsafeMutableRawPointer?
         var result: napi_value!
-        try data.withUnsafeBytes { buf in
-            try env.check(napi_create_buffer_copy(env.raw, buf.count, buf.baseAddress, &resultData, &result))
-        }
+        // try data.withUnsafeBytes { buf in
+        //     try env.check(napi_create_buffer_copy(env.raw, buf.count, buf.baseAddress, &resultData, &result))
+        // }
         super.init(NodeValueBase(raw: result, in: ctx))
     }
 

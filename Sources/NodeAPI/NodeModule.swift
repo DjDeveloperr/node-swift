@@ -8,8 +8,8 @@ public struct NodeModuleRegistrar {
     public func register(
         init create: @escaping @Sendable @NodeActor () throws -> NodeValueConvertible
     ) -> OpaquePointer? {
-        NodeContext.withUnsafeEntrypoint(NodeEnvironment(env!)) { _ in
-            try create().rawValue()
+        NodeContext.withMinimalEntrypoint(env!) { _ in
+            try! create().rawValue()
         }
     }
 
