@@ -4,6 +4,9 @@ internal import CNodeAPI
 @NodeActor public final class NodeEnvironment {
     let _raw: UncheckedSendable<napi_env>
     nonisolated var raw: napi_env { _raw.value }
+    
+    /// Public accessor for the raw environment pointer, for use with performUnsafe
+    public nonisolated var rawPointer: OpaquePointer { _raw.value }
 
     nonisolated init(_ raw: napi_env) {
         self._raw = .init(raw)
@@ -18,6 +21,14 @@ internal import CNodeAPI
             NodeContext.withContext(environment: env) { _ in
                 try perform()
             }
+        }
+    }
+
+    /// Minimal entrypoint that only sets up the context stack without async queue overhead.
+    /// Use this for callbacks in environments that don't support threadsafe functions (e.g., CFRunLoop-based runtimes).
+    public nonisolated static func performMinimal<T>(_ raw: OpaquePointer, perform: @NodeActor @Sendable () throws -> T) -> T? {
+        NodeContext.withMinimalEntrypoint(raw) { _ in
+            try perform()
         }
     }
 
